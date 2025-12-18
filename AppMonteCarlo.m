@@ -55,10 +55,12 @@ function AppMonteCarlo()
     % 2. SIDEBAR (CONTROLS & RESULTS)
     % =====================================================================
     pSide = uipanel(gridMain, 'BackgroundColor', C.Bg, 'BorderType', 'none');
-    gSide = uigridlayout(pSide, [5, 1]); 
     
-    gSide.RowHeight = {160, 130, 100, 200, '1x'}; 
-    gSide.Padding = [0 0 0 0]; gSide.RowSpacing = 15;
+    % Αλλαγή: 6 Σειρές. Η 5η είναι για το 3D Button (Fixed), η 6η για το κενό.
+    gSide = uigridlayout(pSide, [6, 1]); 
+    gSide.RowHeight = {160, 130, 100, 200, 45, '1x'}; 
+    gSide.Padding = [0 0 0 0]; 
+    gSide.RowSpacing = 10;
     
     % --- CARD 1: CONFIGURATION ---
     card1 = createCard(gSide, 'SIMULATION SETUP');
@@ -80,22 +82,34 @@ function AppMonteCarlo()
     lc2.RowHeight = {20, 40, 20};
     
     uilabel(lc2, 'Text', 'Reliability Weight (\alpha)', 'FontWeight', 'bold', 'FontColor', C.Primary);
-    sldAlpha = uislider(lc2, 'Limits', [0 100], 'Value', 80); % Default higher for Wang
+    sldAlpha = uislider(lc2, 'Limits', [0 100], 'Value', 80); 
     lblAlpha = uilabel(lc2, 'Text', 'Balance: 80% Effective Latency / 20% Distance', ...
         'HorizontalAlignment', 'center', 'FontColor', C.TextDim, 'FontSize', 10);
     
     sldAlpha.ValueChangedFcn = @(s,e) updateLabel(lblAlpha, s.Value);
 
-    % --- CARD 3: EXECUTION ---
+    % --- CARD 3: EXECUTION (ΔΙΟΡΘΩΜΕΝΟ) ---
     card3 = createCard(gSide, 'CONTROL');
-    lc3 = uigridlayout(card3, [1, 2]); 
-    lc3.Padding = [20 20 20 20]; 
-    lc3.ColumnWidth = {'1x', 50};
     
-    btnRun = uibutton(lc3, 'Text', 'RUN ANALYSIS', ...
-        'BackgroundColor', C.Primary, 'FontColor', 'w', 'FontWeight', 'bold', 'FontSize', 14);
+    % Grid: 1 γραμμή, 3 στήλες. Run (μεγάλο), VS (μικρό), Lamp (σταθερό)
+    lc3 = uigridlayout(card3, [1, 3]); 
+    lc3.Padding = [10 15 10 15]; 
+	lc3.ColumnWidth = {'1.2x', '1x', '0.8x'}; % Run, VS, Status Text
+    lc3.ColumnSpacing = 8;
+	
+	% 1. RUN Button
+    btnRun = uibutton(lc3, 'Text', 'RUN SIM', ...
+        'BackgroundColor', C.Primary, 'FontColor', 'w', 'FontWeight', 'bold', 'FontSize', 12);
     
-    lampStatus = uilamp(lc3, 'Color', [0.8 0.8 0.8]); 
+    % 2. VS STOCHASTIC Button 
+    btnComp = uibutton(lc3, 'Text', 'VS STOCH.', ...
+        'BackgroundColor', [0.00 0.55 0.65], ... )
+        'FontColor', 'w', 'FontWeight', 'bold', 'FontSize', 10);
+    
+    % 3. STATUS LABEL 
+    lblStatus = uilabel(lc3, 'Text', 'READY', ...
+        'HorizontalAlignment', 'center', ...
+        'FontWeight', 'bold', 'FontColor', [0.6 0.6 0.6], 'FontSize', 10);
     
     % --- CARD 4: RESULTS DASHBOARD ---
     pRes = uipanel(gSide, 'BackgroundColor', 'w', 'Title', 'AGGREGATE METRICS', ...
@@ -121,40 +135,56 @@ function AppMonteCarlo()
     res_Dop = uilabel(lRes, 'Text', '-- kHz', 'FontWeight','bold', 'FontSize',18, 'FontColor', C.TextDark);
     res_Jit = uilabel(lRes, 'Text', '-- μs', 'FontWeight','bold', 'FontSize',18, 'FontColor', C.TextDark);
 
-    % 3D Button
+    % --- 3D BUTTON (FIXED HEIGHT) ---
+    % Αυτό τώρα θα πάει στη γραμμή 5 που ορίσαμε ύψος 45px
     btn3D = uibutton(gSide, 'Text', 'Open 3D Inspector 🌍', ...
-        'BackgroundColor', [0.2 0.2 0.2], 'FontColor', 'w', 'Enable', 'off', 'FontSize', 12); 
-
-    % =====================================================================
+        'BackgroundColor', [0.2 0.2 0.2], 'FontColor', 'w', 'Enable', 'off', 'FontSize', 12);
+		
+	% =====================================================================
     % 3. VISUALIZATION AREA (TABS)
     % =====================================================================
+    % Αυτό το κομμάτι πρέπει να είναι ΜΕΤΑ το Sidebar (btn3D)
+    
     tabGroup = uitabgroup(gridMain);
     
     % Tab 1: Latency Distribution
     t1 = uitab(tabGroup, 'Title', 'Latency & Cost');
     gT1 = uigridlayout(t1, [1, 1]);
-    axLat = uiaxes(gT1); title(axLat, 'End-to-End Latency Distribution'); grid(axLat,'on');
+    axLat = uiaxes(gT1); 
+    title(axLat, 'End-to-End Latency Distribution'); 
+    grid(axLat,'on');
     
     % Tab 2: Reliability
     t2 = uitab(tabGroup, 'Title', 'Reliability (SNR)');
     gT2 = uigridlayout(t2, [1, 1]);
-    axRel = uiaxes(gT2); title(axRel, 'Link Budget Improvement'); grid(axRel,'on');
+    axRel = uiaxes(gT2); 
+    title(axRel, 'Link Budget Improvement'); 
+    grid(axRel,'on');
     
-    % Tab 3: Doppler/Jitter (NEW)
+    % Tab 3: Doppler/Jitter
     t3 = uitab(tabGroup, 'Title', 'Doppler Dynamics');
     gT3 = uigridlayout(t3, [2, 1]);
-    axDop = uiaxes(gT3); title(axDop, 'Max Doppler Shift per Route (kHz)'); grid(axDop,'on');
-    axJit = uiaxes(gT3); title(axJit, 'Route Jitter (Doppler Std Dev)'); grid(axJit,'on');
     
+    axDop = uiaxes(gT3); 
+    title(axDop, 'Max Doppler Shift per Route (kHz)'); 
+    grid(axDop,'on');
+    
+    axJit = uiaxes(gT3); 
+    title(axJit, 'Network Jitter (μs)'); % <--- Εδώ είναι και η διόρθωση μονάδας που κάναμε
+    grid(axJit,'on');
     % =====================================================================
     % 4. CALLBACKS
     % =====================================================================
     
     btnRun.ButtonPushedFcn = @(b,e) runSimulation();
     btn3D.ButtonPushedFcn = @(b,e) show3DView();
-    
+    btnComp.ButtonPushedFcn = @(b,e) runStochasticComparison();
+	
     function runSimulation()
-        btnRun.Enable = 'off'; lampStatus.Color = 'y'; drawnow;
+        btnRun.Enable = 'off'; 
+        lblStatus.Text = 'RUNNING...';       % <-- Αλλαγή
+        lblStatus.FontColor = [0.85 0.55 0.10]; % <-- Πορτοκαλί (Warning Color)
+        drawnow;
         
         try
             % 1. Inputs
@@ -225,12 +255,22 @@ function AppMonteCarlo()
                 State.HasRun = true;
                 btn3D.Enable = 'on';
             end
-            lampStatus.Color = 'g';
+            lblStatus.Text = 'DONE';            
+            lblStatus.FontColor = [0.20 0.65 0.35]; 
             
         catch ME
-            if exist('wb','var'), close(wb); end
-            uialert(fig, ME.message, 'Error');
-            lampStatus.Color = 'r';
+            % Ασφαλές κλείσιμο του waitbar
+            if exist('wb','var') && ~isempty(wb) && isvalid(wb)
+                close(wb); 
+            end
+            
+            % Εμφάνιση του πραγματικού σφάλματος
+            uialert(fig, ME.message, 'Simulation Error');
+            lblStatus.Text = 'ERROR';            
+            lblStatus.FontColor = [0.75 0.20 0.20]; 
+            
+            % Εκτύπωση στο Command Window για περισσότερες λεπτομέρειες (προαιρετικό)
+            disp(ME.stack(1));
         end
         btnRun.Enable = 'on';
     end
@@ -348,5 +388,95 @@ function AppMonteCarlo()
 
     function updateLabel(lbl, val)
         lbl.Text = sprintf('Balance: %d%% Effective Latency / %d%% Distance', round(val), 100-round(val));
+    end
+	
+	function runStochasticComparison()
+        % Ανοίγει νέο παράθυρο για σύγκριση Walker vs Stochastic
+        fComp = uifigure('Name', 'Topology Comparison: Organized vs Random', ...
+            'Position', [100 100 1000 600], 'Color', 'w');
+        
+        gComp = uigridlayout(fComp, [1, 2]);
+        ax1 = uiaxes(gComp); title(ax1, 'Latency Histogram'); grid(ax1, 'on');
+        ax2 = uiaxes(gComp); title(ax2, 'Graph Connectivity View'); grid(ax2, 'on');
+        
+        % Ανάκτηση παραμέτρου N από το κύριο παράθυρο
+        N_val = efN.Value;
+        
+        % Ένδειξη φόρτωσης
+        d = uiprogressdlg(fComp, 'Title', 'Running Comparison', ...
+            'Message', 'Generating Constellations...', 'Indeterminate', 'on');
+        
+        try
+            % 1. Walker-Delta (Organized)
+            [p1, v1, l1] = SimUtils.generateConstellation(N_val, 1, 'Starlink');
+            [G1, ~] = SimUtils.buildGraphs(p1, v1, l1, struct('Range', 3500, 'UseOpt', false));
+            
+            % 2. Stochastic (Random)
+            [p2, v2, l2] = SimUtils.generateConstellation(N_val, 1, 'Stochastic');
+            [G2, ~] = SimUtils.buildGraphs(p2, v2, l2, struct('Range', 3500, 'UseOpt', false));
+            
+            % 3. Υπολογισμός Διαδρομών (Τυχαίο Δείγμα 100 ζευγών)
+            lat_walker = [];
+            lat_stoch = [];
+            
+            % Υπολογισμός components
+            bins1 = conncomp(G1); 
+            bins2 = conncomp(G2);
+            
+            for k=1:100
+                nodes = randperm(N_val, 2);
+                u = nodes(1); v = nodes(2);
+                
+                % Walker Check
+                if bins1(u) == bins1(v)
+                    path1 = shortestpath(G1, u, v);
+                    if ~isempty(path1)
+                        [L, ~] = SimUtils.getPathMetrics(path1, p1, v1, [], []);
+                        lat_walker(end+1) = L;
+                    end
+                end
+                
+                % Stochastic Check
+                if bins2(u) == bins2(v)
+                    path2 = shortestpath(G2, u, v);
+                    if ~isempty(path2)
+                        [L, ~] = SimUtils.getPathMetrics(path2, p2, v2, [], []);
+                        lat_stoch(end+1) = L;
+                    end
+                end
+            end
+            
+            % 4. Plot Results (Latency)
+            if isempty(lat_walker), lat_walker = 0; end
+            if isempty(lat_stoch), lat_stoch = 0; end
+            
+            histogram(ax1, lat_walker, 20, 'FaceColor', 'b', 'FaceAlpha', 0.5);
+            hold(ax1, 'on');
+            histogram(ax1, lat_stoch, 20, 'FaceColor', 'r', 'FaceAlpha', 0.5);
+            legend(ax1, 'Walker (Organized)', 'Stochastic (Random)');
+            xlabel(ax1, 'Latency (ms)'); ylabel(ax1, 'Frequency');
+            
+            % 5. Plot Connectivity (Manual Spy Implementation)
+            % Walker Links (Blue)
+            A1 = adjacency(G1);
+            [row1, col1] = find(A1);
+            plot(ax2, col1, row1, '.b', 'MarkerSize', 2);
+            hold(ax2, 'on');
+            
+            % Stochastic Links (Red) - Shifted slightly or overlay
+            % Αν το Stochastic έχει πολύ λίγες συνδέσεις, θα φανεί εδώ
+            A2 = adjacency(G2);
+            [row2, col2] = find(A2);
+            plot(ax2, col2, row2, '.r', 'MarkerSize', 2);
+            
+            legend(ax2, 'Walker Links', 'Stochastic Links');
+            title(ax2, 'Adjacency Matrix Structure (Sparsity)');
+            axis(ax2, 'ij'); % Reverse Y axis to look like matrix
+            xlim(ax2, [0, N_val]); ylim(ax2, [0, N_val]);
+            
+        catch ME
+            uialert(fComp, ME.message, 'Error during comparison');
+        end
+        close(d);
     end
 end
