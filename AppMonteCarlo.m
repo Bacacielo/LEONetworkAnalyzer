@@ -1,16 +1,26 @@
 function AppMonteCarlo()
-% APP_MONTECARLO - Network Analysis Dashboard 
-%   Updated to support Wang et al. "Effective Latency" metrics.
-%   Includes:
-%     - Doppler/Jitter Analysis
-%     - Earth Texture Mapping
-%     - Orbital Plane Visualization
+% APP_MONTECARLO - LEO Network Reliability Analysis Dashboard
+%
+% DESCRIPTION:
+%   Main GUI application for the LEO Network Analyzer.
+%   Performs Monte Carlo simulations to compare standard shortest-path routing
+%   versus reliability-aware routing (Wang et al. methodology).
+%
+% FEATURES:
+%   - Monte Carlo simulation engine for constellation performance.
+%   - Comparison of Standard vs. Effective Latency metrics.
+%   - Jitter and Doppler shift analysis.
+%   - Stochastic Topology vs. Walker-Delta comparison tools.
+%   - Interactive 3D visualization of routing paths.
+%
+% AUTHOR: chrisvasill
+% REPOSITORY: LEO-Network-Analyzer
 % =========================================================================
 
     % --- 1. INITIALIZATION ---
     close all; clc;
     
-    % Professional Color Palette (Dark Blue/Grey Theme)
+    % Color Palette (Dark Blue/Grey Theme)
     C.Bg       = [0.95 0.95 0.97]; 
     C.Panel    = [1.00 1.00 1.00]; 
     C.Primary  = [0.00 0.48 0.75]; % MATLAB Blue
@@ -52,7 +62,7 @@ function AppMonteCarlo()
     % =====================================================================
     pSide = uipanel(gridMain, 'BackgroundColor', C.Bg, 'BorderType', 'none');
     
-    % Αλλαγή: 6 Σειρές. Η 5η είναι για το 3D Button (Fixed), η 6η για το κενό.
+    % Sidebar Layout: 6 Rows.
     gSide = uigridlayout(pSide, [6, 1]); 
     gSide.RowHeight = {160, 130, 100, 200, 45, '1x'}; 
     gSide.Padding = [0 0 0 0]; 
@@ -84,10 +94,9 @@ function AppMonteCarlo()
     
     sldAlpha.ValueChangedFcn = @(s,e) updateLabel(lblAlpha, s.Value);
 
-    % --- CARD 3: EXECUTION (ΔΙΟΡΘΩΜΕΝΟ) ---
+    % --- CARD 3: EXECUTION ---
     card3 = createCard(gSide, 'CONTROL');
     
-    % Grid: 1 γραμμή, 3 στήλες. Run (μεγάλο), VS (μικρό), Lamp (σταθερό)
     lc3 = uigridlayout(card3, [1, 3]); 
     lc3.Padding = [10 15 10 15]; 
 	lc3.ColumnWidth = {'1.2x', '1x', '0.8x'}; % Run, VS, Status Text
@@ -131,15 +140,13 @@ function AppMonteCarlo()
     res_Dop = uilabel(lRes, 'Text', '-- kHz', 'FontWeight','bold', 'FontSize',18, 'FontColor', C.TextDark);
     res_Jit = uilabel(lRes, 'Text', '-- μs', 'FontWeight','bold', 'FontSize',18, 'FontColor', C.TextDark);
 
-    % --- 3D BUTTON (FIXED HEIGHT) ---
-    % Αυτό τώρα θα πάει στη γραμμή 5 που ορίσαμε ύψος 45px
+    % --- 3D BUTTON ---
     btn3D = uibutton(gSide, 'Text', 'Open 3D Inspector 🌍', ...
         'BackgroundColor', [0.2 0.2 0.2], 'FontColor', 'w', 'Enable', 'off', 'FontSize', 12);
 		
 	% =====================================================================
     % 3. VISUALIZATION AREA (TABS)
     % =====================================================================
-    % Αυτό το κομμάτι πρέπει να είναι ΜΕΤΑ το Sidebar (btn3D)
     
     tabGroup = uitabgroup(gridMain);
     
@@ -178,8 +185,8 @@ function AppMonteCarlo()
 	
     function runSimulation()
         btnRun.Enable = 'off'; 
-        lblStatus.Text = 'RUNNING...';       % <-- Αλλαγή
-        lblStatus.FontColor = [0.85 0.55 0.10]; % <-- Πορτοκαλί (Warning Color)
+        lblStatus.Text = 'RUNNING...';       % Status Update
+        lblStatus.FontColor = [0.85 0.55 0.10]; % Orange (Warning)
         drawnow;
         
         try
@@ -215,7 +222,7 @@ function AppMonteCarlo()
                     path_w = shortestpath(G_Wang, u, v);
                     
                     if ~isempty(path_b) && ~isempty(path_w)
-                        % Get Detailed Metrics (Now returns 4 values)
+                        % Get Detailed Metrics
                         [Lb, Jb, Fb, Db] = SimUtils.getPathMetrics(path_b, pos, vel, [], []);
                         [Lw, Jw, Fw, Dw] = SimUtils.getPathMetrics(path_w, pos, vel, [], []);
                         
@@ -231,7 +238,7 @@ function AppMonteCarlo()
                             State.LastPathBase = path_b;
                             State.LastPathWang = path_w;
                             
-                            % Store specific metrics for the popup
+                            % Store specific metrics for the popup inspector
                             State.Metrics.Std = [Lb, Fb, Db, Jb];
                             State.Metrics.Wang = [Lw, Fw, Dw, Jw];
                             
@@ -255,17 +262,17 @@ function AppMonteCarlo()
             lblStatus.FontColor = [0.20 0.65 0.35]; 
             
         catch ME
-            % Ασφαλές κλείσιμο του waitbar
+            % Safely close waitbar if error occurs
             if exist('wb','var') && ~isempty(wb) && isvalid(wb)
                 close(wb); 
             end
             
-            % Εμφάνιση του πραγματικού σφάλματος
+            % Display error in dialog
             uialert(fig, ME.message, 'Simulation Error');
             lblStatus.Text = 'ERROR';            
             lblStatus.FontColor = [0.75 0.20 0.20]; 
             
-            % Εκτύπωση στο Command Window για περισσότερες λεπτομέρειες (προαιρετικό)
+            % Print stack trace to Command Window
             disp(ME.stack(1));
         end
         btnRun.Enable = 'on';
@@ -329,7 +336,6 @@ function AppMonteCarlo()
         end
         
         % --- 2. Draw Orbital Planes (Visual Guide) ---
-        % Re-calculate plane geometry roughly based on node distribution
         pos = State.LastPos;
         plot3(ax3, pos(:,1), pos(:,2), pos(:,3), '.', 'Color', [0.4 0.4 0.4], 'MarkerSize', 4);
         
@@ -346,7 +352,6 @@ function AppMonteCarlo()
             'Color', [0 1 1], 'LineWidth', 2, 'MarkerFaceColor', 'c', 'DisplayName', 'Wang (Reliable)');
         
         % --- 4. Route Inspector Text ---
-        % Create a text box on the plot with the specific metrics
         mS = State.Metrics.Std; % [Lat, SNR, Dop, Jit]
         mW = State.Metrics.Wang;
         
@@ -387,7 +392,7 @@ function AppMonteCarlo()
     end
 	
 	function runStochasticComparison()
-        % Ανοίγει νέο παράθυρο για σύγκριση Walker vs Stochastic
+        % Opens a new window to compare Walker vs Stochastic topologies
         fComp = uifigure('Name', 'Topology Comparison: Organized vs Random', ...
             'Position', [100 100 1000 600], 'Color', 'w');
         
@@ -395,10 +400,10 @@ function AppMonteCarlo()
         ax1 = uiaxes(gComp); title(ax1, 'Latency Histogram'); grid(ax1, 'on');
         ax2 = uiaxes(gComp); title(ax2, 'Graph Connectivity View'); grid(ax2, 'on');
         
-        % Ανάκτηση παραμέτρου N από το κύριο παράθυρο
+        % Retrieve N parameter from main window
         N_val = efN.Value;
         
-        % Ένδειξη φόρτωσης
+        % Loading indicator
         d = uiprogressdlg(fComp, 'Title', 'Running Comparison', ...
             'Message', 'Generating Constellations...', 'Indeterminate', 'on');
         
@@ -407,15 +412,15 @@ function AppMonteCarlo()
             [p1, v1, l1] = SimUtils.generateConstellation(N_val, 1, 'Starlink');
             [G1, ~] = SimUtils.buildGraphs(p1, v1, l1, struct('Range', 3500, 'UseOpt', false));
             
-            % 2. Stochastic (Random)
+            % 2. Stochastic (Random - BPP)
             [p2, v2, l2] = SimUtils.generateConstellation(N_val, 1, 'Stochastic');
             [G2, ~] = SimUtils.buildGraphs(p2, v2, l2, struct('Range', 3500, 'UseOpt', false));
             
-            % 3. Υπολογισμός Διαδρομών (Τυχαίο Δείγμα 100 ζευγών)
+            % 3. Calculate Paths (Random sample of 100 pairs)
             lat_walker = [];
             lat_stoch = [];
             
-            % Υπολογισμός components
+            % Compute connected components
             bins1 = conncomp(G1); 
             bins2 = conncomp(G2);
             
@@ -459,8 +464,8 @@ function AppMonteCarlo()
             plot(ax2, col1, row1, '.b', 'MarkerSize', 2);
             hold(ax2, 'on');
             
-            % Stochastic Links (Red) - Shifted slightly or overlay
-            % Αν το Stochastic έχει πολύ λίγες συνδέσεις, θα φανεί εδώ
+            % Stochastic Links (Red) - Overlay
+            % If Stochastic has few links, it will be visible here
             A2 = adjacency(G2);
             [row2, col2] = find(A2);
             plot(ax2, col2, row2, '.r', 'MarkerSize', 2);
@@ -476,4 +481,3 @@ function AppMonteCarlo()
         close(d);
     end
 end
-
