@@ -225,10 +225,22 @@ classdef SimUtils
                     load_penalty = (loads(u) + loads(v)) / 2; 
                 end
                 
-                % Queueing Model (Congestion)
-                % Models the exponential delay increase as buffers fill up.
-                % Approximation: T_queue ~ Load^2 * base_processing_time
-                T_queue = (load_penalty .^ 2) * 0.005; 
+                % Queueing Model M/M/1 queueing fix
+				SERVICE_TIME_MS = 0.1;
+				SERVICE_RATE_HZ = 1000 / SERVICE_TIME_MS;
+				rho = load_penalty;
+				T_queue = zeros(size(rho));
+
+				for k = 1:length(rho)
+					if rho(k) >= 0.99
+						T_queue(k) = 50;
+					else
+						T_queue(k) = (rho(k) / (SERVICE_RATE_HZ * (1 - rho(k)))) * 1000;
+					end
+				end
+
+				T_queue = min(T_queue, 50);
+
                 
                 % Final Effective Latency Formula (Wang et al. modified)
                 % L_eff = L_prop / (1 - P_out) + L_queue
