@@ -42,7 +42,7 @@ Conventional shortest-path algorithms often select geometrically optimal but uns
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/yourusername/LEO-Network-Analyzer.git](https://github.com/yourusername/LEO-Network-Analyzer.git)
+    git clone https://github.com/Bacacielo/LEONetworkAnalyzer.git)
     ```
 
 2.  **Open MATLAB** and navigate to the project directory.
